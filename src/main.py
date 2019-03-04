@@ -3,15 +3,35 @@ import numpy as np
 import matplotlib.pyplot as mpl
 import sqlite3
 
-# Other functions here...
+def task1():
+    print('Run task 1')
+    
+def task2():
+    print('Run task 2')
 
+def task3():
+    print('Run task 3')
 
+def task4():
+    print('Run task 4')
+    
+def task5():
+    print('Run task 5')
+    
+def task6():
+    print('Run task 6')
 
 def main():
     print('--- ASSIGNMENT 3 PROGRAM ---')
     # Other terminal instructions here
 
-    # Initializations here
+    tasks = {}
+    tasks[1] = task1 # Set manually for changing func names
+    tasks[2] = task2
+    tasks[3] = task3
+    tasks[4] = task4
+    tasks[5] = task5
+    tasks[6] = task6
 
     # Main interface loop
     while(True):
@@ -24,30 +44,15 @@ def main():
         print('[5] Task 5')
         print('[6] Task 6')
         action = input()
-        try:
-            if action.lower() == 'e':
-                break # Exit interface
-            # Perhaps make a function for each task
-            if int(action)==1:
-                print('Run task 1')
-            elif int(action)==2:
-                print('Run task 2')
-            elif int(action)==3:
-                print('Run task 3')
-            elif int(action)==4:
-                print('Run task 4')
-            elif int(action)==5:
-                print('Run task 5')
-            elif int(action)==6:
-                print('Run task 6')
-            else:
-                break # Just exit for now
-            print('Done.')
-        except:
-            # For catching input errors & edge cases
-            # Just exit the loop for now
+        
+        if action.lower()=='e':
             break
 
+        # Does not catch exceptions
+        tasks[int(action)]()
+
+        print('Done.')
+        
     print('Goodbye.')
 
 main()
