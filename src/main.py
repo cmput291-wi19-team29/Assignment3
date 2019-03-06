@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import math
 import matplotlib.pyplot as plt
 import sqlite3
 import os
@@ -17,7 +18,93 @@ def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
 
 def task1(conn):
-    print('Run task 1')
+    print('Running task 1\n')
+    PER_PAGE = 5
+    
+    # read and process SQL query 1 -- get all papers
+    query = open('1a.sql','r')
+    sql = query.read()
+    query.close()
+   
+    df = None
+    try:
+        df = pd.read_sql_query(sql,conn)
+    except Exception as e:
+        print("Error: {}".format(e.args[0]))
+        return
+    
+    # calculate number of pages of 5 papers each
+    # (except possibly the last page)
+    num_rows = len(df)
+    batches = math.ceil(num_rows/PER_PAGE)
+    showing = 1         # the batch currently showing
+
+    # show five papers per page until one is selected
+    valid = False
+    while(not valid):
+        
+      if showing == batches:
+        # the last batch may not have 5 rows
+        print(df.iloc[showing*PER_PAGE-PER_PAGE:num_rows,:1])
+
+      else:
+        print(df.iloc[showing*PER_PAGE-PER_PAGE:showing*PER_PAGE,:1])
+
+      # show options --
+      # N should not show for the last page, P should not show for the first page
+      print("\nSelect a paper")
+      if showing > 1:
+        print("[P] Previous Page")
+      if showing < batches:
+        print("[N] Next Page")
+
+      # process get user input
+      option = input()
+
+      # let's be kind to the user and not make it case sensitive
+
+      if option.lower() == "n" and showing < batches:
+        # next page
+        showing += 1
+        continue
+    
+      if option.lower() == "p" and showing >1:
+        # prev page
+        showing -= 1
+        continue
+    
+      if option.isdigit():
+        # only accept numbers currently showing
+        if (showing == batches and int(option) in range(showing*PER_PAGE-PER_PAGE,num_rows)) or (showing != batches and int(option) in range(showing*PER_PAGE-PER_PAGE,showing*PER_PAGE)):
+          selected = int(option)
+          valid = True
+        else:
+          print("\nInvalid option. Select the number of a paper on the page.")
+          continue
+        
+      else:
+        # not valid
+        print("\nInvalid option. Enter N, P, or a paper number.")
+        continue
+    # end while
+    
+
+    # read and process SQL query 2 -- get all reviewers of the paper selected
+    query2 = open('1b.sql','r')
+    sql2 = query2.read()
+    query2.close()
+   
+    df2 = None
+    try:
+        df2 = pd.read_sql_query(sql2,conn,params=[int(df.iloc[selected,1])])
+    except Exception as e:
+        print("Error: {}".format(e.args[0]))
+        return
+
+    print("\nReviewers of this paper:")
+    for each in df2['reviewer'].values:
+        print(each) 
+
     
 def task2(conn):
     print('Run task 2')
@@ -123,6 +210,7 @@ def main():
             break
 
         # execute action
+        
         try:
             print('') # newline
             tasks[action](conn)
