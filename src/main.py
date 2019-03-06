@@ -42,6 +42,7 @@ def task1(conn):
     # show five papers per page until one is selected
     valid = False
     while(not valid):
+      clear()
         
       if showing == batches:
         # the last batch may not have 5 rows
@@ -52,7 +53,7 @@ def task1(conn):
 
       # show options --
       # N should not show for the last page, P should not show for the first page
-      print("\nSelect a paper")
+      print("\nSelect a paper. Showing page",showing,"/",batches")
       if showing > 1:
         print("[P] Previous Page")
       if showing < batches:
