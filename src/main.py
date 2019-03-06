@@ -42,7 +42,7 @@ def task1(conn):
     # show five papers per page until one is selected
     valid = False
     while(not valid):
-      clear()
+      
         
       if showing == batches:
         # the last batch may not have 5 rows
@@ -67,11 +67,13 @@ def task1(conn):
       if option.lower() == "n" and showing < batches:
         # next page
         showing += 1
+        clear()
         continue
     
       if option.lower() == "p" and showing >1:
         # prev page
         showing -= 1
+        clear()
         continue
     
       if option.isdigit():
