@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import math
+import time
 import matplotlib.pyplot as plt
 import sqlite3
 import os
@@ -26,16 +27,17 @@ def task1(conn):
     sql = query.read()
     query.close()
    
-    df = None
+    cur = conn.cursor()
     try:
-        df = pd.read_sql_query(sql,conn)
+        cur.execute(sql)
     except Exception as e:
         print("Error: {}".format(e.args[0]))
         return
     
     # calculate number of pages of 5 papers each
     # (except possibly the last page)
-    num_rows = len(df)
+    paper_data = cur.fetchall()
+    num_rows = len(paper_data)
     batches = math.ceil(num_rows/PER_PAGE)
     showing = 1         # the batch currently showing
 
@@ -43,13 +45,18 @@ def task1(conn):
     valid = False
     while(not valid):
       
-        
-      if showing == batches:
-        # the last batch may not have 5 rows
-        print(df.iloc[showing*PER_PAGE-PER_PAGE:num_rows,:1])
+      # last refers to the last paper on the page
+      # this is the fifth paper on every page except possibly the last
 
+      if showing == batches:
+        last = num_rows
       else:
-        print(df.iloc[showing*PER_PAGE-PER_PAGE:showing*PER_PAGE,:1])
+        last = showing*PER_PAGE
+        
+      # the last batch may not have 5 rows
+      print("\n")
+      for i in range(showing*PER_PAGE-PER_PAGE,last):
+        print(i,paper_data[i][0])
 
       # show options --
       # N should not show for the last page, P should not show for the first page
@@ -64,17 +71,32 @@ def task1(conn):
 
       # let's be kind to the user and not make it case sensitive
 
-      if option.lower() == "n" and showing < batches:
-        # next page
-        showing += 1
-        clear()
-        continue
+      if option.lower() == "n":
+        if showing < batches:
+            # next page
+            showing += 1
+            clear()
+            continue
+        else:
+          # no next page
+          print("\nThere are no more pages. Enter P to go back a page, or choose a paper number.")
+          time.sleep(2.5)
+          clear()
+          continue
     
-      if option.lower() == "p" and showing >1:
-        # prev page
-        showing -= 1
-        clear()
-        continue
+      if option.lower() == "p":
+        if showing >1:
+          # prev page
+          showing -= 1
+          clear()
+          continue
+        else:
+          # no prev page
+          print("\nThere are no previous pages. Enter N to go to the next page, or choose a paper number.")
+          time.sleep(2.5)
+          clear()
+          continue
+
     
       if option.isdigit():
         # only accept numbers currently showing
@@ -83,11 +105,15 @@ def task1(conn):
           valid = True
         else:
           print("\nInvalid option. Select the number of a paper on the page.")
+          time.sleep(2.5)
+          clear()
           continue
         
       else:
         # not valid
         print("\nInvalid option. Enter N, P, or a paper number.")
+        time.sleep(2.5)
+        clear()
         continue
     # end while
     
@@ -97,15 +123,16 @@ def task1(conn):
     sql2 = query2.read()
     query2.close()
    
-    df2 = None
     try:
-        df2 = pd.read_sql_query(sql2,conn,params=[int(df.iloc[selected,1])])
+        cur.execute(sql2, (paper_data[selected][1],))
     except Exception as e:
         print("Error: {}".format(e.args[0]))
         return
-
+    
+    # display reviewers
     print("\nReviewers of this paper:")
-    for each in df2['reviewer'].values:
+    reviewer_data = cur.fetchall()
+    for each in reviewer_data:
         print(each) 
 
     
@@ -150,7 +177,71 @@ def task3(conn):
         print(row)
 
 def task4(conn):
-    print('Run task 4')
+    print('Running task 4\n')
+    
+    # read and process SQL query -- get number of sessions per author
+    # note that according to the eclass forum, the session count includes ALL sessions,
+    # not just distinct ones
+    # discussion: https://eclass.srv.ualberta.ca/mod/forum/discuss.php?d=1140073#p3001027
+    
+    query = open('4a.sql','r')
+    sql = query.read()
+    query.close()
+
+    try:
+        df = pd.read_sql_query(sql,conn)
+    except Exception as e:
+        print("Error: {}".format(e.args[0]))
+        return
+
+    # display options menu
+    print("Select a display option:\n (1) Bar plot of all authors \
+\n (2) Individual author")
+
+    # validate user option
+    valid = False
+    while(not valid):
+        option = input()
+
+        if option.isdigit():
+
+            # bar plot
+            if int(option) == 1:
+                
+                valid = True
+                plot = df.plot.bar(x="author")
+                plt.plot()
+                plt.show()
+                return
+
+            # allow selection of author and display session count
+            elif int(option) == 2:
+            
+                valid = True
+                print("\n",df.iloc[:,0:1])  # all rows, and first col (author emails)
+                print("\nSelect an author")
+
+                # validate author choice
+                valid_author = False
+                while(not valid_author):
+                    author = input()
+                    
+                    if author.isdigit() and int(author) in range(len(df)):
+                        # show that author's name and session column
+                        print(df.iloc[int(author),0],"is participating in",df.iloc[int(author),1],"session(s) (total number of accepted papers)")
+                        valid_author = True
+                        return
+                    else:
+                        print("Invalid author number. Please enter a number from the list of authors above")
+                        continue
+
+            else:
+                print("Invalid option. Please enter 1 or 2")
+                continue
+
+        else:
+            print("Invalid option. Please enter a number")
+            continue
     
 def task5(conn):
     print('Run task 5')
@@ -200,10 +291,10 @@ def main():
         print('\n--- ASSIGNMENT 3 PROGRAM ---')
         print('What do you want to know?')
         print('[q] Quit')
-        print('[1] Task 1')
+        print('[1] Fetch all reviewers for a paper')
         print('[2] Task 2')
         print('[3] Reviewers that have made [a, b] reviews')
-        print('[4] Task 4')
+        print('[4] Total number of sessions with accepted papers per author')
         print('[5] Task 5')
         print('[6] Average scores per cateogry for each reviewer (bar chart)')
         action = input()
