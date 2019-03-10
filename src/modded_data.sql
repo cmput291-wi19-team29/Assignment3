@@ -35,6 +35,7 @@ insert into expertise values ('SE', 'Minnie@Email');
 insert into expertise values ('SE', 'Donald@Email');
 insert into expertise values ('SE', 'Mickey@Email');
 insert into expertise values ('SK', 'R2D2@Email');
+insert into expertise values ('SK', 'EXTRA@Email');
 insert into expertise values ('SE', 'C3P0@Email');
 
 

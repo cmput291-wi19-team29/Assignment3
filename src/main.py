@@ -5,8 +5,10 @@ import time
 import matplotlib.pyplot as plt
 import sqlite3
 import os
+import os.path
 import time
 import math
+import sys
 
 # check if a variable is an integer
 def isInt(x):
@@ -20,20 +22,29 @@ def isInt(x):
 def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
 
+# Formatting pie chart labels
+def formatLabels(pct, allvals):
+    absolute = int(pct/100.*np.sum(allvals))
+    return "{:.1f}%\n({:d})".format(pct, absolute)
+
 def task1(conn):
     print('Running task 1\n')
     PER_PAGE = 5
     
     # read and process SQL query 1 -- get all papers
-    query = open('1a.sql','r')
-    sql = query.read()
-    query.close()
+    try:
+        query = open('1a.sql','r')
+        sql = query.read()
+        query.close()
+    except Exception as e:
+        print(e)
+        return
    
     cur = conn.cursor()
     try:
         cur.execute(sql)
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
     
     # calculate number of pages of 5 papers each
@@ -131,14 +142,18 @@ def task1(conn):
     
 
     # read and process SQL query 2 -- get all reviewers of the paper selected
-    query2 = open('1b.sql','r')
-    sql2 = query2.read()
-    query2.close()
+    try:
+        query2 = open('1b.sql','r')
+        sql2 = query2.read()
+        query2.close()
+    except Exception as e:
+        print(e)
+        return
    
     try:
         cur.execute(sql2, (paper_data[selected][1],))
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
     
     # display reviewers
@@ -160,7 +175,7 @@ def task2(conn):
         sql = f.read()
         f.close()
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
 
     # Create cursor and execute first query (get all papers)
@@ -168,7 +183,7 @@ def task2(conn):
     try:
         cur.execute(sql)
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
     
     # Calculate number of pages of 5 papers each
@@ -176,6 +191,11 @@ def task2(conn):
     num_papers = len(papers)
     num_pages = math.ceil(num_papers/PER_PAGE)
     page = 1 # The page to show
+
+    # check empty
+    if num_pages == 0:
+        print("There are no papers to display")
+        return
 
     #time.sleep(DELAY) # annoying when trying to check them all
     clear()
@@ -257,12 +277,12 @@ def task2(conn):
         sql2 = f2.read()
         f2.close()
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
     try:
         cur.execute(sql2, (papers[selected][1], papers[selected][1]))
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
     
     # Display the result from the query -- potential reviewers
@@ -289,14 +309,18 @@ def task3(conn):
     if not ( isInt(a) and isInt(b) ):
         print('Error: a,b must be integers')
         return
-    if b < a:
+    if int(b) < int(a):
         print('Error: b cannot be less than a')
         return
 
     # read SQL
-    f = open('3.sql', 'r')
-    sql = f.read()
-    f.close()
+    try:
+        f = open('3a.sql','r')
+        sql = f.read()
+        f.close()
+    except Exception as e:
+        print(e)
+        return
 
     # execute
     args = (int(a), int(b))
@@ -304,13 +328,37 @@ def task3(conn):
     try:
         cur.execute(sql, args)
     except sqlite3.Error as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
 
     # print
     print('\nResult:')
     for row in cur:
         print(row)
+
+    # special case for [0, X]
+    # display reviewers who did not review any papers
+    if int(a) == 0:
+        # read SQL
+        try:
+            f = open('3b.sql','r')
+            sql = f.read()
+            f.close()
+        except Exception as e:
+            print(e)
+            return
+
+        # execute
+        cur = conn.cursor()
+        try:
+            cur.execute(sql)
+        except sqlite3.Error as e:
+            print(e)
+            return
+
+        # print
+        for row in cur:
+            print(row)
 
 def task4(conn):
     print('Running task 4\n')
@@ -320,14 +368,18 @@ def task4(conn):
     # not just distinct ones
     # discussion: https://eclass.srv.ualberta.ca/mod/forum/discuss.php?d=1140073#p3001027
     
-    query = open('4a.sql','r')
-    sql = query.read()
-    query.close()
+    try:
+        query = open('4a.sql','r')
+        sql = query.read()
+        query.close()
+    except Exception as e:
+        print(e)
+        return
 
     try:
         df = pd.read_sql_query(sql,conn)
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
     
     # no data to process, so pointless to continue
@@ -386,6 +438,7 @@ def task4(conn):
     
 def task5(conn):
     print('Showing 5 most popular areas of expertise by paper counts...\n')
+
     # Create a pie chart of the top 5 most popular areas
     # popularity comes from the number of papers under the area.
     # If there are less than 5 areas, show pie chart of however many areas that exist.
@@ -396,14 +449,14 @@ def task5(conn):
         sql = f.read()
         f.close()
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
     
     # Create DataFrame
     try:
         df = pd.read_sql_query(sql, conn)
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
     
     # Make sure the SQL returned something
@@ -430,7 +483,7 @@ def task5(conn):
         pop = df
     
     print(pop)
-    
+
     # Display percentages in a pie chart
     plot = pop.plot.pie(
         labels=pop.area, 
@@ -450,9 +503,13 @@ def task6(conn):
     print('Running task 6\n')
 
     # read SQL
-    f = open('6.sql', 'r')
-    sql = f.read()
-    f.close()
+    try:
+        f = open('6.sql','r')
+        sql = f.read()
+        f.close()
+    except Exception as e:
+        print(e)
+        return
     
     # execute
     try:
@@ -462,16 +519,32 @@ def task6(conn):
         print("Error: query failed")
         return
 
+    # check for empty df
+    if len(df) == 0:
+        print("There are no reviewers to display")
+        return
+
     # display
     df.plot.bar(x='reviewer')
     plt.show()
 
 def main():
+    # check for DB param
+    if len(sys.argv) != 2:
+        print('Error: expected exactly one arg (the relative path of the database to connect to)')
+        return
+
+    # check that DB exists
+    if not os.path.isfile(sys.argv[1]):
+        print('The DB at ./{} does not exist'.format(sys.argv[1]))
+        return
+
     # connect to DB
     try:
-        conn = sqlite3.connect("database.db")
+        print("Connecting to DB at ./{}".format(sys.argv[1]))
+        conn = sqlite3.connect(sys.argv[1])
     except sqlite3.Error as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
 
     # use dict since python has no switch
