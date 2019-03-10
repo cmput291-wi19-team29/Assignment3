@@ -41,6 +41,10 @@ def task1(conn):
     paper_data = cur.fetchall()
     num_rows = len(paper_data)
     batches = math.ceil(num_rows/PER_PAGE)
+    if batches == 0:
+        print("There are no papers to display")
+        return
+    
     showing = 1         # the batch currently showing
 
     # show five papers per page until one is selected
@@ -58,21 +62,27 @@ def task1(conn):
       # the last batch may not have 5 rows
       print("\n")
       for i in range(showing*PER_PAGE-PER_PAGE,last):
-        print(i,paper_data[i][0])
+        print("["+str(i)+"]",paper_data[i][0])
 
       # show options --
       # N should not show for the last page, P should not show for the first page
-      print("\nSelect a paper. Showing page",showing,"/",batches)
+      print("\nSelect a paper. Showing page (",showing,"/",batches,")")
       if showing > 1:
         print("[P] Previous Page")
       if showing < batches:
         print("[N] Next Page")
+        
+      print("[Q] Quit to main menu")      
+
 
       # process get user input
       option = input()
 
       # let's be kind to the user and not make it case sensitive
 
+      if option.lower() == "q": # exit task
+        return
+    
       if option.lower() == "n":
         if showing < batches:
             # next page
@@ -225,7 +235,7 @@ def task2(conn):
         # Select a paper
         if option.isdigit():
             # Only allow papers on this page to be selected
-            if (page == num_pages and int(option) in range(page*PER_PAGE-PER_PAGE, num_pages)) or (page != num_pages and int(option) in range(page*PER_PAGE-PER_PAGE, page*PER_PAGE)):
+            if (page == num_pages and int(option) in range(page*PER_PAGE-PER_PAGE, num_papers)) or (page != num_pages and int(option) in range(page*PER_PAGE-PER_PAGE, page*PER_PAGE)):
                 selected = int(option)
                 valid = True
             else:
@@ -319,7 +329,12 @@ def task4(conn):
     except Exception as e:
         print("Error: {}".format(e.args[0]))
         return
-
+    
+    # no data to process, so pointless to continue
+    if len(df) == 0:
+        print("There are no authors with accepted papers")
+        return
+    
     # display options menu
     print("Select a display option:\n (1) Bar plot of all authors \
 \n (2) Individual author")
