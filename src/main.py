@@ -175,7 +175,7 @@ def task2(conn):
         sql = f.read()
         f.close()
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
 
     # Create cursor and execute first query (get all papers)
@@ -183,7 +183,7 @@ def task2(conn):
     try:
         cur.execute(sql)
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
     
     # Calculate number of pages of 5 papers each
@@ -191,6 +191,11 @@ def task2(conn):
     num_papers = len(papers)
     num_pages = math.ceil(num_papers/PER_PAGE)
     page = 1 # The page to show
+
+    # check empty
+    if num_pages == 0:
+        print("There are no papers to display")
+        return
 
     #time.sleep(DELAY) # annoying when trying to check them all
     clear()
@@ -272,12 +277,12 @@ def task2(conn):
         sql2 = f2.read()
         f2.close()
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
     try:
         cur.execute(sql2, (papers[selected][1], papers[selected][1]))
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
     
     # Display the result from the query -- potential reviewers
@@ -444,14 +449,14 @@ def task5(conn):
         sql = f.read()
         f.close()
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
     
     # Create DataFrame
     try:
         df = pd.read_sql_query(sql, conn)
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
     
     # Make sure the SQL returned something
@@ -512,6 +517,11 @@ def task6(conn):
     except:
         # use custom message since sql error won't propagate
         print("Error: query failed")
+        return
+
+    # check for empty df
+    if len(df) == 0:
+        print("There are no reviewers to display")
         return
 
     # display
