@@ -52,6 +52,10 @@ def task1(conn):
     paper_data = cur.fetchall()
     num_rows = len(paper_data)
     batches = math.ceil(num_rows/PER_PAGE)
+    if batches == 0:
+        print("There are no papers to display")
+        return
+    
     showing = 1         # the batch currently showing
 
     # show five papers per page until one is selected
@@ -69,21 +73,27 @@ def task1(conn):
       # the last batch may not have 5 rows
       print("\n")
       for i in range(showing*PER_PAGE-PER_PAGE,last):
-        print(i,paper_data[i][0])
+        print("["+str(i)+"]",paper_data[i][0])
 
       # show options --
       # N should not show for the last page, P should not show for the first page
-      print("\nSelect a paper. Showing page",showing,"/",batches)
+      print("\nSelect a paper. Showing page (",showing,"/",batches,")")
       if showing > 1:
         print("[P] Previous Page")
       if showing < batches:
         print("[N] Next Page")
+        
+      print("[Q] Quit to main menu")      
+
 
       # process get user input
       option = input()
 
       # let's be kind to the user and not make it case sensitive
 
+      if option.lower() == "q": # exit task
+        return
+    
       if option.lower() == "n":
         if showing < batches:
             # next page
@@ -156,122 +166,129 @@ def task1(conn):
 def task2(conn):
     print('Displaying all papers...\n')
     
-    # Read in sql
-    paper_f = open('2a.sql', 'r')
-    paper_sql = paper_f.read()
-    paper_f.close()
-    reviewers_f = open('2b.sql', 'r')
-    reviewers_sql = reviewers_f.read()
-    reviewers_f.close()
-    reviews_f = open('2c.sql', 'r')
-    reviews_sql = reviews_f.read()
-    reviews_f.close()
-    
-    # Create dataframes
+    PER_PAGE = 5
+    DELAY = 2.5
+
+    # Read SQL query for geting all papers
     try:
-        papers = pd.read_sql_query(paper_sql, conn)
-        reviewers = pd.read_sql_query(reviewers_sql, conn)
-        reviews = pd.read_sql_query(reviews_sql, conn)
+        f = open('2a.sql','r')
+        sql = f.read()
+        f.close()
     except Exception as e:
-        print(e)
+        print("Error: {}".format(e.args[0]))
+        return
+
+    # Create cursor and execute first query (get all papers)
+    cur = conn.cursor()
+    try:
+        cur.execute(sql)
+    except Exception as e:
+        print("Error: {}".format(e.args[0]))
         return
     
-    # Make sure the db has papers
-    if len(papers)==0:
-        print("No papers found!")
-        return
-    if len(reviewers)==0:
-        print("No reviewers found!")
-        return
-    if len(reviews)==0:
-        # Shouldn't be fatal?
-        print("Note: No reviews have been made.")
+    # Calculate number of pages of 5 papers each
+    papers = cur.fetchall() # Get result of the sql execution
+    num_papers = len(papers)
+    num_pages = math.ceil(num_papers/PER_PAGE)
+    page = 1 # The page to show
 
-    PERPAGE = 5 # Display all papers in pages
-    DELAY = 2 # in seconds, for bad input messages
-    page=0 # The current page being displayed
+    #time.sleep(DELAY) # annoying when trying to check them all
+    clear()
 
-    # Pagination loop
-    while (True):
+    # Page selection loop
+    valid = False
+    while(not valid):
+        print("\n")
 
-        # Print out the terminal interface
-        print('{%i}-PAGE\tSelect paper Id.\t Quit [q]' % ( page+1 ))
-        print('-'*50)
-        for j in range(page*PERPAGE, (page*PERPAGE)+PERPAGE):
-            if j<len(papers):
-                print("[%i] %s" % (papers['Id'][j], papers['title'][j]))
+        # Print out the interface. Stop printing when the last paper is reached. 
+        for i in range( (page*PER_PAGE)-PER_PAGE, page*PER_PAGE ):
+            if i < num_papers:
+                print("[%i]  %s  %s" % (i, papers[i][2], papers[i][0]))
             else:
                 print()
-        print('-'*50)
-        if page > 0:
-            print('[p] previous page\t', end='')
-        else:
-            print('\t\t\t', end='')
-        if (page * PERPAGE) + PERPAGE < len(papers):
-            print('\t[n] next page', end='')
         print()
-        
-        # Input loop
-        while(True):
-            action = input() # Should match the paper's Id
 
-            # Does the user want to select a paper or change pages?
-            if isInt(action):
-                # Select paper. Get its Id.
-                # TODO upon reflection, I should have used iloc(). Oh well.
-                Id = int(action)
-                if Id-1 > len(papers)-1 or Id-1 < 0:
-                    print('Invalid paper Id.')
-                    time.sleep(DELAY)
-                    continue # break to reprint page or continue to not reprint page
-                select = Id-1 # The index of the selected paper is one less than its Id
-                print("Paper %i: '%s'" % (Id, papers['title'][select]))
-                print("by %s" % papers['author'][select])
-                
-                # Show all reviewers with matching expertise
-                print("Potential reviewers in %s:" % papers["area"][select])
-                count = 0
-                for i in range(0, len(reviewers)):
-                    # Exclude people who have already reviewed the selected paper
-                    if reviewers["area"][i] == papers["area"][select]:
-                        # This reviewer could review this paper
-                        canReview = True
-                        # Check the reviews db to see if they already reviewed it
-                        for j in range(0, len(reviews)):
-                            if reviewers["reviewer"][i] == reviews["reviewer"][j] and reviews["paper"][j] == papers["Id"][select]:
-                                # They already reviewed this paper.
-                                canReview = False
-                        if canReview:
-                            # This person can review this paper.
-                            print(reviewers["reviewer"][i])
-                            count+=1
-                # Just an extra thing for user feedback.
-                if count==0:
-                    print("Nobody! Perhaps the paper has already been reviewed?")
-            
+        # Show pagination
+        print("Select a paper. Showing page (%i / %i)" % (page, num_pages))
+        if page > 1:
+            print("[P] Previous Page")
+        else:
+            print()
+        if page < num_pages:
+            print("[N] Next Page")
+        else:
+            print()
+        print("[Q] Quit to  main menu")
+
+        # User input
+        option = input()
+        if option.lower() =="q":
+            return
+        # Change pages
+        if option.lower() == "n":
+            if page < num_pages:
+                page += 1
+                clear()
+                continue
             else:
-                # Change pages
-                if action=='q':
-                    print('Quit')
-                    return
-                elif action=='p': # Previous page
-                    if page > 0:
-                        page -= 1
-                        break
-                    else:
-                        print('This is the first page!')
-                elif action=='n': # Next page
-                    # Apparently ' / ' in python doesn't cut the decimal so I'll use floor()
-                    if page < math.floor(len(papers) / PERPAGE):
-                        page += 1
-                        break
-                    else:
-                        print('This is the last page!')
-                else:
-                    print("Action not recognized.")
-                    time.sleep(DELAY)
-                    continue # use break to reprint page or continue to not reprint page
-        print()
+                print("There are no more pages. Enter P to go back a page, or choose a paper number.")
+                time.sleep(DELAY)
+                clear()
+                continue
+        
+        if option.lower() == "p":
+            if page > 1:
+                page -= 1
+                clear()
+                continue
+            else:
+                print("There are no previous pages. Enter N to go to the next page, or choose a paper number.")
+                time.sleep(DELAY)
+                clear()
+                continue
+    
+        # Select a paper
+        if option.isdigit():
+            # Only allow papers on this page to be selected
+            if (page == num_pages and int(option) in range(page*PER_PAGE-PER_PAGE, num_papers)) or (page != num_pages and int(option) in range(page*PER_PAGE-PER_PAGE, page*PER_PAGE)):
+                selected = int(option)
+                valid = True
+            else:
+                print("Invalid option. Select the number of a paper on the page.")
+                time.sleep(DELAY)
+                clear()
+                continue
+        else:
+            # not valid
+            print("Invalid option. Enter Q, N, P, or a paper number.")
+            time.sleep(DELAY)
+            clear()
+            continue
+
+    # For the selected paper, display potential reviewers in that area of expertise
+    # First execute the query (uses set difference)
+    try:
+        f2 = open('2b.sql','r')
+        sql2 = f2.read()
+        f2.close()
+    except Exception as e:
+        print("Error: {}".format(e.args[0]))
+        return
+    try:
+        cur.execute(sql2, (papers[selected][1], papers[selected][1]))
+    except Exception as e:
+        print("Error: {}".format(e.args[0]))
+        return
+    
+    # Display the result from the query -- potential reviewers
+    print("Selected paper: '%s' \nby %s" % (papers[selected][0], papers[selected][3]))
+    print("Potential reviewers for this paper in %s:" % papers[selected][2])
+    reviewer_data = cur.fetchall()
+    if len(reviewer_data)==0:
+        print("Nobody! Perhaps the paper has already been reviewed?")
+    else:
+        for each in reviewer_data:
+            print(each)
 
 # given a number range, find all reviewers whose number of reviews is in that range (the range should include the bounds)
 def task3(conn):
@@ -359,7 +376,12 @@ def task4(conn):
     except Exception as e:
         print(e)
         return
-
+    
+    # no data to process, so pointless to continue
+    if len(df) == 0:
+        print("There are no authors with accepted papers")
+        return
+    
     # display options menu
     print("Select a display option:\n (1) Bar plot of all authors \
 \n (2) Individual author")
@@ -410,21 +432,26 @@ def task4(conn):
             continue
     
 def task5(conn):
-    print('Showing 5 most popular areas of expertise...\n')
+    print('Showing 5 most popular areas of expertise by paper counts...\n')
+
     # Create a pie chart of the top 5 most popular areas
     # popularity comes from the number of papers under the area.
     # If there are less than 5 areas, show pie chart of however many areas that exist.
     
     # read SQL
-    f = open('5.sql', 'r')
-    sql = f.read()
-    f.close()
+    try:
+        f = open('5.sql', 'r')
+        sql = f.read()
+        f.close()
+    except Exception as e:
+        print("Error: {}".format(e.args[0]))
+        return
     
     # Create DataFrame
     try:
         df = pd.read_sql_query(sql, conn)
     except Exception as e:
-        print(e)
+        print("Error: {}".format(e.args[0]))
         return
     
     # Make sure the SQL returned something
@@ -434,7 +461,19 @@ def task5(conn):
     
     # Extract top 5 most popular areas and display their exact counts
     if len(df) > 5:
-        pop = df.iloc[0:5,:]
+        # First we need to account for ties.
+        # Keep extending the end limit until the tie is broken.
+        #print(df)
+        end = 4
+        for i in range(5, len(df)):
+            #print("Checking ", i-1, i)
+            if df["count"][i-1] != df["count"][i]:
+                break
+            else:
+                end = i
+                #print("Match")
+        # Now create the popular dataset and include the ties on the end.
+        pop = df.iloc[0:end+1,:]
     else:
         pop = df
     
@@ -444,7 +483,7 @@ def task5(conn):
     plot = pop.plot.pie(
         labels=pop.area, 
         y="count",
-        title="Most popular areas of expertise of papers",
+        title="Most popular areas of expertise (by paper counts)",
         legend=False,
         autopct='%1.1f%%'
     )
@@ -517,7 +556,7 @@ def main():
         print('[2] Find potential reviewers for papers')
         print('[3] Reviewers that have made [a, b] reviews')
         print('[4] Total number of sessions with accepted papers per author')
-        print('[5] Find the most popular areas of expertise')
+        print('[5] Find the most popular areas of expertise (by paper counts)')
         print('[6] Average scores per cateogry for each reviewer (bar chart)')
         action = input()
 
