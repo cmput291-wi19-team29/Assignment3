@@ -5,5 +5,5 @@
 
 SELECT  p1.author, COUNT(csession) 
 FROM (SELECT DISTINCT author FROM papers) as p1
-left JOIN papers ON (papers.author = p1.author AND papers.decision = "A"  ) 
+LEFT JOIN papers ON (papers.author = p1.author AND papers.decision = "A"  ) 
 GROUP BY p1.author
