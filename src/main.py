@@ -5,6 +5,10 @@ import time
 import matplotlib.pyplot as plt
 import sqlite3
 import os
+import os.path
+import time
+import math
+import sys
 
 # check if a variable is an integer
 def isInt(x):
@@ -18,20 +22,29 @@ def isInt(x):
 def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
 
+# Formatting pie chart labels
+def formatLabels(pct, allvals):
+    absolute = int(pct/100.*np.sum(allvals))
+    return "{:.1f}%\n({:d})".format(pct, absolute)
+
 def task1(conn):
     print('Running task 1\n')
     PER_PAGE = 5
     
     # read and process SQL query 1 -- get all papers
-    query = open('1a.sql','r')
-    sql = query.read()
-    query.close()
+    try:
+        query = open('1a.sql','r')
+        sql = query.read()
+        query.close()
+    except Exception as e:
+        print(e)
+        return
    
     cur = conn.cursor()
     try:
         cur.execute(sql)
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
     
     # calculate number of pages of 5 papers each
@@ -119,14 +132,18 @@ def task1(conn):
     
 
     # read and process SQL query 2 -- get all reviewers of the paper selected
-    query2 = open('1b.sql','r')
-    sql2 = query2.read()
-    query2.close()
+    try:
+        query2 = open('1b.sql','r')
+        sql2 = query2.read()
+        query2.close()
+    except Exception as e:
+        print(e)
+        return
    
     try:
         cur.execute(sql2, (paper_data[selected][1],))
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
     
     # display reviewers
@@ -135,9 +152,126 @@ def task1(conn):
     for each in reviewer_data:
         print(each) 
 
-    
+# Show all papers in pages; select a paper and show all potential reviewers
 def task2(conn):
-    print('Run task 2')
+    print('Displaying all papers...\n')
+    
+    # Read in sql
+    paper_f = open('2a.sql', 'r')
+    paper_sql = paper_f.read()
+    paper_f.close()
+    reviewers_f = open('2b.sql', 'r')
+    reviewers_sql = reviewers_f.read()
+    reviewers_f.close()
+    reviews_f = open('2c.sql', 'r')
+    reviews_sql = reviews_f.read()
+    reviews_f.close()
+    
+    # Create dataframes
+    try:
+        papers = pd.read_sql_query(paper_sql, conn)
+        reviewers = pd.read_sql_query(reviewers_sql, conn)
+        reviews = pd.read_sql_query(reviews_sql, conn)
+    except Exception as e:
+        print(e)
+        return
+    
+    # Make sure the db has papers
+    if len(papers)==0:
+        print("No papers found!")
+        return
+    if len(reviewers)==0:
+        print("No reviewers found!")
+        return
+    if len(reviews)==0:
+        # Shouldn't be fatal?
+        print("Note: No reviews have been made.")
+
+    PERPAGE = 5 # Display all papers in pages
+    DELAY = 2 # in seconds, for bad input messages
+    page=0 # The current page being displayed
+
+    # Pagination loop
+    while (True):
+
+        # Print out the terminal interface
+        print('{%i}-PAGE\tSelect paper Id.\t Quit [q]' % ( page+1 ))
+        print('-'*50)
+        for j in range(page*PERPAGE, (page*PERPAGE)+PERPAGE):
+            if j<len(papers):
+                print("[%i] %s" % (papers['Id'][j], papers['title'][j]))
+            else:
+                print()
+        print('-'*50)
+        if page > 0:
+            print('[p] previous page\t', end='')
+        else:
+            print('\t\t\t', end='')
+        if (page * PERPAGE) + PERPAGE < len(papers):
+            print('\t[n] next page', end='')
+        print()
+        
+        # Input loop
+        while(True):
+            action = input() # Should match the paper's Id
+
+            # Does the user want to select a paper or change pages?
+            if isInt(action):
+                # Select paper. Get its Id.
+                # TODO upon reflection, I should have used iloc(). Oh well.
+                Id = int(action)
+                if Id-1 > len(papers)-1 or Id-1 < 0:
+                    print('Invalid paper Id.')
+                    time.sleep(DELAY)
+                    continue # break to reprint page or continue to not reprint page
+                select = Id-1 # The index of the selected paper is one less than its Id
+                print("Paper %i: '%s'" % (Id, papers['title'][select]))
+                print("by %s" % papers['author'][select])
+                
+                # Show all reviewers with matching expertise
+                print("Potential reviewers in %s:" % papers["area"][select])
+                count = 0
+                for i in range(0, len(reviewers)):
+                    # Exclude people who have already reviewed the selected paper
+                    if reviewers["area"][i] == papers["area"][select]:
+                        # This reviewer could review this paper
+                        canReview = True
+                        # Check the reviews db to see if they already reviewed it
+                        for j in range(0, len(reviews)):
+                            if reviewers["reviewer"][i] == reviews["reviewer"][j] and reviews["paper"][j] == papers["Id"][select]:
+                                # They already reviewed this paper.
+                                canReview = False
+                        if canReview:
+                            # This person can review this paper.
+                            print(reviewers["reviewer"][i])
+                            count+=1
+                # Just an extra thing for user feedback.
+                if count==0:
+                    print("Nobody! Perhaps the paper has already been reviewed?")
+            
+            else:
+                # Change pages
+                if action=='q':
+                    print('Quit')
+                    return
+                elif action=='p': # Previous page
+                    if page > 0:
+                        page -= 1
+                        break
+                    else:
+                        print('This is the first page!')
+                elif action=='n': # Next page
+                    # Apparently ' / ' in python doesn't cut the decimal so I'll use floor()
+                    if page < math.floor(len(papers) / PERPAGE):
+                        page += 1
+                        break
+                    else:
+                        print('This is the last page!')
+                else:
+                    print("Action not recognized.")
+                    time.sleep(DELAY)
+                    continue # use break to reprint page or continue to not reprint page
+        print()
 
 # given a number range, find all reviewers whose number of reviews is in that range (the range should include the bounds)
 def task3(conn):
@@ -153,14 +287,18 @@ def task3(conn):
     if not ( isInt(a) and isInt(b) ):
         print('Error: a,b must be integers')
         return
-    if b < a:
+    if int(b) < int(a):
         print('Error: b cannot be less than a')
         return
 
     # read SQL
-    f = open('3.sql', 'r')
-    sql = f.read()
-    f.close()
+    try:
+        f = open('3a.sql','r')
+        sql = f.read()
+        f.close()
+    except Exception as e:
+        print(e)
+        return
 
     # execute
     args = (int(a), int(b))
@@ -168,13 +306,37 @@ def task3(conn):
     try:
         cur.execute(sql, args)
     except sqlite3.Error as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
 
     # print
     print('\nResult:')
     for row in cur:
         print(row)
+
+    # special case for [0, X]
+    # display reviewers who did not review any papers
+    if int(a) == 0:
+        # read SQL
+        try:
+            f = open('3b.sql','r')
+            sql = f.read()
+            f.close()
+        except Exception as e:
+            print(e)
+            return
+
+        # execute
+        cur = conn.cursor()
+        try:
+            cur.execute(sql)
+        except sqlite3.Error as e:
+            print(e)
+            return
+
+        # print
+        for row in cur:
+            print(row)
 
 def task4(conn):
     print('Running task 4\n')
@@ -184,14 +346,18 @@ def task4(conn):
     # not just distinct ones
     # discussion: https://eclass.srv.ualberta.ca/mod/forum/discuss.php?d=1140073#p3001027
     
-    query = open('4a.sql','r')
-    sql = query.read()
-    query.close()
+    try:
+        query = open('4a.sql','r')
+        sql = query.read()
+        query.close()
+    except Exception as e:
+        print(e)
+        return
 
     try:
         df = pd.read_sql_query(sql,conn)
     except Exception as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
 
     # display options menu
@@ -244,7 +410,48 @@ def task4(conn):
             continue
     
 def task5(conn):
-    print('Run task 5')
+    print('Showing 5 most popular areas of expertise...\n')
+    # Create a pie chart of the top 5 most popular areas
+    # popularity comes from the number of papers under the area.
+    # If there are less than 5 areas, show pie chart of however many areas that exist.
+    
+    # read SQL
+    f = open('5.sql', 'r')
+    sql = f.read()
+    f.close()
+    
+    # Create DataFrame
+    try:
+        df = pd.read_sql_query(sql, conn)
+    except Exception as e:
+        print(e)
+        return
+    
+    # Make sure the SQL returned something
+    if len(df)==0:
+        print("No papers found!")
+        return
+    
+    # Extract top 5 most popular areas and display their exact counts
+    if len(df) > 5:
+        pop = df.iloc[0:5,:]
+    else:
+        pop = df
+    
+    print(pop)
+
+    # Display percentages in a pie chart
+    plot = pop.plot.pie(
+        labels=pop.area, 
+        y="count",
+        title="Most popular areas of expertise of papers",
+        legend=False,
+        autopct='%1.1f%%'
+    )
+    plt.plot()
+    plt.show()
+
+    print("Generated a pie chart of the results.")
 
 # for each reviewer, give a bar chart of their average review scores for each category. You must return a single grouped bar chart.
 def task6(conn):
@@ -252,9 +459,13 @@ def task6(conn):
     print('Running task 6\n')
 
     # read SQL
-    f = open('6.sql', 'r')
-    sql = f.read()
-    f.close()
+    try:
+        f = open('6.sql','r')
+        sql = f.read()
+        f.close()
+    except Exception as e:
+        print(e)
+        return
     
     # execute
     try:
@@ -269,11 +480,22 @@ def task6(conn):
     plt.show()
 
 def main():
+    # check for DB param
+    if len(sys.argv) != 2:
+        print('Error: expected exactly one arg (the relative path of the database to connect to)')
+        return
+
+    # check that DB exists
+    if not os.path.isfile(sys.argv[1]):
+        print('The DB at ./{} does not exist'.format(sys.argv[1]))
+        return
+
     # connect to DB
     try:
-        conn = sqlite3.connect("database.db")
+        print("Connecting to DB at ./{}".format(sys.argv[1]))
+        conn = sqlite3.connect(sys.argv[1])
     except sqlite3.Error as e:
-        print("Error: {}".format(e.args[0]))
+        print(e)
         return
 
     # use dict since python has no switch
@@ -292,10 +514,10 @@ def main():
         print('What do you want to know?')
         print('[q] Quit')
         print('[1] Fetch all reviewers for a paper')
-        print('[2] Task 2')
+        print('[2] Find potential reviewers for papers')
         print('[3] Reviewers that have made [a, b] reviews')
         print('[4] Total number of sessions with accepted papers per author')
-        print('[5] Task 5')
+        print('[5] Find the most popular areas of expertise')
         print('[6] Average scores per cateogry for each reviewer (bar chart)')
         action = input()
 
