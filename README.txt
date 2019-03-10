@@ -14,3 +14,6 @@ https://stackoverflow.com/questions/82831/how-do-i-check-whether-a-file-exists-w
 https://stackoverflow.com/questions/2084508/clear-terminal-in-python
 https://matplotlib.org/gallery/pie_and_polar_charts/pie_and_donut_labels.html#sphx-glr-gallery-pie-and-polar-charts-pie-and-donut-labels-py
 https://matplotlib.org/api/_as_gen/matplotlib.pyplot.pie.html#matplotlib.pyplot.pie
+
+# disclosure
+We did not collaborate with anyone outside of our team
